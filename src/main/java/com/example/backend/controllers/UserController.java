@@ -1,50 +1,80 @@
 package com.example.backend.controllers;
 
-import com.example.backend.entity.User;
+import com.example.backend.dto.timeSheetDTO.TimeSheetDto;
+import com.example.backend.dto.userDTO.UserDto;
+import com.example.backend.dto.userDTO.UserLoginDto;
+import com.example.backend.dto.userDTO.UserResponseDto;
 import com.example.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/users")
+@RequestMapping("/auth/user")
 public class UserController {
 
-    private final UserService userService;
-
     @Autowired
-    public UserController(UserService userService) {
-        this.userService = userService;
+    private UserService userService;
+
+    @PostMapping("/add")
+    public ResponseEntity<?> addNewUser(@RequestBody UserDto userDto) {
+        try {
+            UserDto newUser = userService.addUser(userDto);
+            return new ResponseEntity<>(newUser, HttpStatus.CREATED);
+        } catch (Exception e) {
+            return ResponseEntity
+                    .status(HttpStatus.BAD_REQUEST)
+                    .body(e.getMessage());
+        }
     }
 
-    @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        return ResponseEntity.ok(userService.findAllUsers());
+    @PostMapping("/edit/{id}")
+    public ResponseEntity<UserResponseDto> editUser(@PathVariable Long id,
+                                                    @RequestBody UserResponseDto userResponseDto) {
+        UserResponseDto updatedUser = userService.editUser(id, userResponseDto);
+        return ResponseEntity.ok(updatedUser);
+    }
+
+
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.ok("User deleted successfully");
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        return userService.findUserById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+    public ResponseEntity<UserResponseDto> getUser(@PathVariable Long id) {
+        UserResponseDto userResponseDto = userService.getUserById(id);
+        return ResponseEntity.ok(userResponseDto);
+    }
+    @GetMapping("/days-off/{id}")
+    public ResponseEntity<Integer> getUserDaysOff(@PathVariable Long id) {
+        Integer daysOff = userService.getUserDaysOff(id);
+        return ResponseEntity.ok(daysOff);
     }
 
-    @PostMapping
-    public ResponseEntity<?> createUser(@RequestBody User user) {
-        if (userService.findByUsername(user.getUsername()).isPresent()) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body("Username is already taken.");
-        }
-        User savedUser = userService.saveUser(user);
-        return ResponseEntity.ok(savedUser);
+    @GetMapping("/")
+    public ResponseEntity<List<UserResponseDto>> getAllUsers() {
+        List<UserResponseDto> users = userService.getAllUsers();
+        return ResponseEntity.ok(users);
+    }
+    @GetMapping("/filter")
+    public ResponseEntity<List<UserResponseDto>> getUsersByTimeSheet() {
+        List<UserResponseDto> users = userService.getUsersByLeastCreatedTimeSheet();
+        return ResponseEntity.ok(users);
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
-        userService.deleteUser(id);
-        return ResponseEntity.ok().build();
+    @PostMapping("/login")
+    public ResponseEntity<UserResponseDto> login(@RequestBody UserLoginDto userLoginDto) {
+        UserResponseDto userResponseDto = userService.verifyUser(userLoginDto.getUsername(), userLoginDto.getPassword());
+        return ResponseEntity.ok(userResponseDto);
     }
+
+
 
 }
+
